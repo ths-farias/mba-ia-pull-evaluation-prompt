@@ -16,30 +16,40 @@ def load_prompts(file_path: str):
     with open(file_path, 'r', encoding='utf-8') as f:
         return yaml.safe_load(f)
 
+
+@pytest.fixture
+def prompt_data():
+    return load_prompts(Path(__file__).parent.parent / "prompts" / "bug_to_user_story_v2.yml")["bug_to_user_story_v2"]
+
 class TestPrompts:
-    def test_prompt_has_system_prompt(self):
+    def test_prompt_has_system_prompt(self, prompt_data):
         """Verifica se o campo 'system_prompt' existe e não está vazio."""
-        pass
+        assert prompt_data.get("system_prompt", "").strip()
 
-    def test_prompt_has_role_definition(self):
+    def test_prompt_has_role_definition(self, prompt_data):
         """Verifica se o prompt define uma persona (ex: "Você é um Product Manager")."""
-        pass
+        text = prompt_data["system_prompt"].lower()
+        assert "product manager" in text or "persona" in text
 
-    def test_prompt_mentions_format(self):
+    def test_prompt_mentions_format(self, prompt_data):
         """Verifica se o prompt exige formato Markdown ou User Story padrão."""
-        pass
+        text = prompt_data["system_prompt"].lower()
+        assert "markdown" in text and "user story" in text
 
-    def test_prompt_has_few_shot_examples(self):
+    def test_prompt_has_few_shot_examples(self, prompt_data):
         """Verifica se o prompt contém exemplos de entrada/saída (técnica Few-shot)."""
-        pass
+        text = prompt_data["system_prompt"].lower()
+        assert text.count("entrada:") >= 2
+        assert text.count("saída:") >= 2
 
-    def test_prompt_no_todos(self):
+    def test_prompt_no_todos(self, prompt_data):
         """Garante que você não esqueceu nenhum `[TODO]` no texto."""
-        pass
+        assert "[todo]" not in " ".join(str(value) for value in prompt_data.values()).lower()
 
-    def test_minimum_techniques(self):
+    def test_minimum_techniques(self, prompt_data):
         """Verifica (através dos metadados do yaml) se pelo menos 2 técnicas foram listadas."""
-        pass
+        assert len(prompt_data.get("techniques_applied", [])) >= 2
+        assert validate_prompt_structure(prompt_data)[0]
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])

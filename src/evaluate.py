@@ -24,7 +24,6 @@ from typing import List, Dict, Any
 from pathlib import Path
 from dotenv import load_dotenv
 from langsmith import Client
-from langchain import hub
 from langchain_core.prompts import ChatPromptTemplate
 from utils import check_env_vars, format_score, print_section_header, get_llm as get_configured_llm
 from metrics import evaluate_f1_score, evaluate_clarity, evaluate_precision
@@ -105,7 +104,10 @@ def create_evaluation_dataset(client: Client, dataset_name: str, jsonl_path: str
 def pull_prompt_from_langsmith(prompt_name: str) -> ChatPromptTemplate:
     try:
         print(f"   Puxando prompt do LangSmith Hub: {prompt_name}")
-        prompt = hub.pull(prompt_name)
+        prompt = Client().pull_prompt(
+            prompt_name,
+            dangerously_pull_public_prompt=True,
+        )
         print(f"   ✓ Prompt carregado com sucesso")
         return prompt
 
@@ -314,15 +316,10 @@ def main():
     print("Certifique-se de ter feito push dos prompts antes de avaliar:")
     print("  python src/push_prompts.py\n")
 
-    username = os.getenv("USERNAME_LANGSMITH_HUB", "")
-    if not username:
-        print("❌ USERNAME_LANGSMITH_HUB não configurada no .env")
-        print("   Configure seu username do LangSmith Hub antes de continuar.")
-        return 1
-
-    prompts_to_evaluate = [
-        f"{username}/bug_to_user_story_v2",
-    ]
+    prompt_name = os.getenv("LANGSMITH_PROMPT_NAME", "bug_to_user_story_v2")
+    owner = os.getenv("USERNAME_LANGSMITH_HUB", "").strip()
+    prompt_identifier = f"{owner}/{prompt_name}" if owner else prompt_name
+    prompts_to_evaluate = [prompt_identifier]
 
     all_passed = True
     evaluated_count = 0

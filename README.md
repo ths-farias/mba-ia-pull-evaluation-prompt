@@ -334,3 +334,79 @@ python src/evaluate.py
 - **Não altere os datasets de avaliação** - apenas os prompts em `prompts/bug_to_user_story_v2.yml`
 - **Itere, itere, itere** - é normal precisar de 3-5 iterações para atingir 0.8 em todas as métricas
 - **Documente seu processo** - a jornada de otimização é tão importante quanto o resultado final
+
+## Técnicas Aplicadas (Fase 2)
+
+### Few-shot Learning
+
+O prompt v2 inclui dois exemplos completos de entrada e saída: um checkout com
+pagamento recusado e um upload de CSV. Eles mostram o nível de detalhe esperado,
+o formato Given/When/Then e como tratar informações ausentes.
+
+### Role Prompting
+
+O modelo recebe a persona de Product Manager técnico especialista em Agile, QA e
+análise de bugs. Isso orienta a resposta para valor do usuário, testabilidade e
+preservação de evidências técnicas, em vez de apenas repetir o relato.
+
+### Skeleton of Thought
+
+O raciocínio interno é organizado em quatro etapas: extrair fatos, separar fatos
+de hipóteses, definir a persona/benefício e cobrir fluxo e edge cases. A saída
+também tem um esqueleto fixo em Markdown com User Story, contexto, critérios,
+reprodução e perguntas em aberto.
+
+## Resultados Finais
+
+O resultado reproduzível é gerado por `python src/evaluate.py` após configurar as
+credenciais e publicar o prompt. O script avalia os 15 exemplos do dataset e
+imprime Helpfulness, Correctness, F1-Score, Clarity e Precision, aprovando apenas
+quando todas as métricas e a média ficam em pelo menos 0.8.
+
+| Aspecto | v1 | v2 |
+| --- | --- | --- |
+| Persona | Assistente genérico | Product Manager técnico, Agile e QA |
+| Instruções | Vagas e duplicadas | Regras explícitas, fatos vs. hipóteses e edge cases |
+| Exemplos | Nenhum | Dois exemplos de entrada/saída |
+| Formato | User Story sem estrutura | Markdown fixo e critérios Given/When/Then |
+| Variável do bug | Repetida no system e user | Recebida no user prompt |
+
+O link público do dataset e screenshots do dashboard devem ser adicionados após a
+execução autenticada no workspace LangSmith, pois dependem do handle e do
+experimento criados pelo usuário. Para compartilhar o dataset, use:
+
+```python
+from langsmith import Client
+print(Client().share_dataset(dataset_name="<seu-projeto>-eval")["url"])
+```
+
+## Como Executar
+
+```bash
+python -m venv venv
+# Windows PowerShell
+venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+Copy-Item .env.example .env
+```
+
+Python 3.10 a 3.14 é suportado. Em Python 3.14, mantenha o Pydantic atualizado
+conforme o `requirements.txt`; versões antigas tentam compilar `pydantic-core`
+com uma versão do PyO3 incompatível com o interpretador.
+
+Preencha no `.env` `LANGSMITH_API_KEY`, `LANGSMITH_WORKSPACE_ID` quando a chave
+for vinculada à organização, o provider e a chave do modelo escolhido. Se houver
+handle público, informe-o em `USERNAME_LANGSMITH_HUB`; caso contrário, deixe-o
+vazio e use `LANGSMITH_PROMPT_NAME=bug_to_user_story_v2`.
+
+```bash
+python src/pull_prompts.py
+python src/push_prompts.py
+python src/evaluate.py
+pytest tests/test_prompts.py
+```
+
+O pull usa `dangerously_pull_public_prompt=True` exclusivamente para o prompt
+semente público do desafio. O push publica `bug_to_user_story_v2` no namespace
+informado por `USERNAME_LANGSMITH_HUB` ou, sem handle, diretamente no workspace.
+Tags, descrição e técnicas são incluídas nos metadados.
